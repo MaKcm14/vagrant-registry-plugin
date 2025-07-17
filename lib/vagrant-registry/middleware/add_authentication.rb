@@ -1,4 +1,6 @@
 require "cgi"
+require "json"
+require "net/http"
 require "uri"
 
 require_relative "../client"
@@ -14,6 +16,46 @@ module VagrantPlugins
         @logger = Log4r::Logger.new("vagrant::registry::add_authentication")
       end
 
+      # TODO: refactor it!
+      def get_repo_name(url)
+        url.path.split('/').each_with_index do |url_item, idx|
+          if url_item == "boxes"
+            return url.path.split('/')[idx+1, 2].join('/')
+          end
+        end
+        url.path.split('/')[1..3].join('/')
+      end
+
+      def get_user_boxes_list(url)
+        url_copy = url.dup
+        url_copy.path = "/api/v1/boxes/" + get_repo_name(url_copy).split('/')[0]
+        resp = Net::HTTP.get_response(url_copy)
+
+        if resp.is_a?(Net::HTTPRedirection)
+          url_copy.path = resp['location']
+          resp = Net::HTTP.get_response(url_copy)
+        end
+
+        resp.body
+      end
+
+      def add_token?(url)
+        if url.host == "vagrantcloud.com"
+          return true
+        end
+
+        body = JSON.parse(get_user_boxes_list(url))
+        repo_name = get_repo_name(url)
+
+        body["results"].each do |box|
+          if box['tag'] == repo_name
+            return false
+          end
+        end
+
+        return true
+      end
+
       def call(env)
         tokens = Client.new(env[:env], nil).all_tokens
 
@@ -26,6 +68,10 @@ module VagrantPlugins
 
             u = URI.parse(url)
             @logger.info("==> u: #{u}")
+
+            if (ARGV[0] == "box" || ARGV[0] == "init") && !add_token?(u)
+              next u.to_s
+            end
 
             token = tokens[u.host]
   
