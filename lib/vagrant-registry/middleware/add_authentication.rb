@@ -16,19 +16,24 @@ module VagrantPlugins
         @logger = Log4r::Logger.new("vagrant::registry::add_authentication")
       end
 
-      # TODO: refactor it!
+      # get_repo_name gets the name of repository in the form of "Creator_name/Name".
       def get_repo_name(url)
-        url.path.split('/').each_with_index do |url_item, idx|
+        url_path_parts = url.path.split('/')
+
+        url_path_parts.each_with_index do |url_item, idx|
           if url_item == "boxes"
-            return url.path.split('/')[idx+1, 2].join('/')
+            return url_path_parts[idx+1, 2].join('/')
           end
         end
-        url.path.split('/')[1..3].join('/')
+
+        return url_path_parts[1..3].join('/')
       end
 
-      def get_user_boxes_list(url)
+      # get_user_boxes_list returns the boxes' list of the current user.
+      def get_user_boxes_list(url, user_name)
         url_copy = url.dup
-        url_copy.path = "/api/v1/boxes/" + get_repo_name(url_copy).split('/')[0]
+        url_copy.path = "/api/v1/boxes/" + user_name
+        
         resp = Net::HTTP.get_response(url_copy)
 
         if resp.is_a?(Net::HTTPRedirection)
@@ -36,18 +41,19 @@ module VagrantPlugins
           resp = Net::HTTP.get_response(url_copy)
         end
 
-        resp.body
+        return JSON.parse(resp.body)["results"]
       end
 
+      # add_token? defines whether middleware needs to add an auth-token.
       def add_token?(url)
         if url.host == "vagrantcloud.com"
           return true
         end
 
-        body = JSON.parse(get_user_boxes_list(url))
         repo_name = get_repo_name(url)
+        boxes_ls = get_user_boxes_list(url, repo_name.split('/')[0])
 
-        body["results"].each do |box|
+        boxes_ls.each do |box|
           if box['tag'] == repo_name
             return false
           end
@@ -69,7 +75,7 @@ module VagrantPlugins
             u = URI.parse(url)
             @logger.info("==> u: #{u}")
 
-            if (ARGV[0] == "box" || ARGV[0] == "init") && !add_token?(u)
+            if (ARGV[0] == "box" || ARGV[0] == "init" || ARGV[0] == "up") && !add_token?(u)
               next u.to_s
             end
 
