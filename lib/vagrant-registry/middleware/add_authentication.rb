@@ -76,8 +76,6 @@ module VagrantPlugins
             @logger.info("==> u: #{u}")
 
             if (ARGV[0] == "box" || ARGV[0] == "init" || ARGV[0] == "up") && !add_token?(u)
-              # TODO: delete
-              puts u
               next u.to_s
             end
 
@@ -100,9 +98,6 @@ module VagrantPlugins
               @logger.info("==> u: #{u}")
             end
 
-            # TODO: delete
-            puts u
-            
             u.to_s
           end
         end
