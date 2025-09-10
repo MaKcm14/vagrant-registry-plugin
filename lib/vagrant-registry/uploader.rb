@@ -74,9 +74,6 @@ module VagrantPlugins
       # Initiate a box upload
       #
       # @return [String] URL to which box file should be uploaded
-      # здесь также невозможно обойтись без указания архитектуры, поскольку
-      # сам по себе запрос подразумевает отправку данных о боксе с указанием конкретного провайдера и,
-      # как следствие, архитектуры.
       def initiate_upload
         @logger.debug("Initiating upload for box '#{@path}'")
         api_url = URI.join(@root_url, "/api/v1/boxes/#{@username}/#{@box_name}/versions/#{@version}/providers/#{@provider}/architecture/#{@arch}/uploads/").to_s
@@ -88,7 +85,7 @@ module VagrantPlugins
               :checksum_type => "sha256",
               :checksum => @box_file_hash,
               # :version => @version,
-              # :provider =>@provider,
+              # :provider => @provider,
           }
           response = RestClient::Request.execute(
               method: :post,
@@ -205,8 +202,6 @@ module VagrantPlugins
         end
       end
 
-      # Create new provider ??: если у нас несколько архитектур для провайдера, то результат возврата - 
-      # несколько объектов. Нужно конкретизировать архитектурами.
       def ensure_box_provider_created
         api_url = URI.join(@root_url, "/api/v1/boxes/#{@username}/#{@box_name}/versions/#{@version}/providers/#{@provider}/architecture/#{@arch}").to_s
         url = self.authenticate_url(api_url)
@@ -226,8 +221,6 @@ module VagrantPlugins
         end
       end 
 
-      # создание провайдера без указания архитектуры - запрещено, ведь непонятно, что именно
-      # нужно будет создать (под какую архитектуру).
       def create_new_box_provider
         @logger.info("Creating new box provider #{@username}/#{@box_name} v#{@version} #{@provider}")
 
