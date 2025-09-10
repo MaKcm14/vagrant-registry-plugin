@@ -17,13 +17,14 @@ module VagrantPlugins
       # @param [String] url
       # @param [String] version
       # @param [String] provider
-      def initialize(env, path, url, version, provider,
+      def initialize(env, path, url, version, provider, arch,
                      chunk_size = 1024 * 1024 * 5) # 5 MB
         @logger = Log4r::Logger.new("vagrant::registry::uploader")
         @env = env
         @path = path
         @version = version
         @provider = provider
+        @arch = arch
         @chunk_size = chunk_size
         @file_size = Pathname.new(path).size?
         @box_file_hash = Digest::SHA256.file(@path).hexdigest
@@ -73,9 +74,12 @@ module VagrantPlugins
       # Initiate a box upload
       #
       # @return [String] URL to which box file should be uploaded
+      # здесь также невозможно обойтись без указания архитектуры, поскольку
+      # сам по себе запрос подразумевает отправку данных о боксе с указанием конкретного провайдера и,
+      # как следствие, архитектуры.
       def initiate_upload
         @logger.debug("Initiating upload for box '#{@path}'")
-        api_url = URI.join(@root_url, "/api/v1/boxes/#{@username}/#{@box_name}/versions/#{@version}/providers/#{@provider}/uploads/").to_s
+        api_url = URI.join(@root_url, "/api/v1/boxes/#{@username}/#{@box_name}/versions/#{@version}/providers/#{@provider}/architecture/#{@arch}/uploads/").to_s
         url = self.authenticate_url(api_url)
 
         with_error_handling do
@@ -201,9 +205,10 @@ module VagrantPlugins
         end
       end
 
-      # Create new provider
+      # Create new provider ??: если у нас несколько архитектур для провайдера, то результат возврата - 
+      # несколько объектов. Нужно конкретизировать архитектурами.
       def ensure_box_provider_created
-        api_url = URI.join(@root_url, "/api/v1/boxes/#{@username}/#{@box_name}/versions/#{@version}/providers/#{@provider}/").to_s
+        api_url = URI.join(@root_url, "/api/v1/boxes/#{@username}/#{@box_name}/versions/#{@version}/providers/#{@provider}/architecture/#{@arch}").to_s
         url = self.authenticate_url(api_url)
 
         with_error_handling do
@@ -221,6 +226,8 @@ module VagrantPlugins
         end
       end 
 
+      # создание провайдера без указания архитектуры - запрещено, ведь непонятно, что именно
+      # нужно будет создать (под какую архитектуру).
       def create_new_box_provider
         @logger.info("Creating new box provider #{@username}/#{@box_name} v#{@version} #{@provider}")
 
@@ -228,7 +235,10 @@ module VagrantPlugins
         url = self.authenticate_url(api_url)
 
         with_error_handling do
-          payload = {:provider => @provider}
+          payload = {
+            :provider => @provider,
+            :architecture => @arch
+          }
           RestClient::Request.execute(
               method: :post,
               url: url,

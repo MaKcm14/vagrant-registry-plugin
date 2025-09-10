@@ -23,8 +23,8 @@ module VagrantPlugins
           argv = parse_options(opts)
           return unless argv
 
-          path, url, version, provider = argv[0], argv[1], argv[2], argv[3]
-          if !path || !url || !version || !provider || argv.length > 4
+          path, url, version, provider, arch = argv[0], argv[1], argv[2], argv[3], argv[4]
+          if !path || !url || !version || !provider || !arch || argv.length > 5
             raise Vagrant::Errors::CLIInvalidUsage,
                   help: opts.help.chomp
           end
@@ -47,7 +47,7 @@ module VagrantPlugins
 
           self.logged_in?(url)
 
-          uploader = Registry::Uploader.new(@env, path, url, version, provider)
+          uploader = Registry::Uploader.new(@env, path, url, version, provider, arch)
 
           if options[:new_upload]
             uploader.upload_box!
